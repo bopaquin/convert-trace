@@ -21,4 +21,4 @@ python convert-trace.py -h
 
 ## License
 
-Distributed under the MIT License. See [LICENSE](https://github.com//convert-trace/blob/main/LICENSE) for more information.
+Distributed under the MIT License. See [LICENSE](https://github.com/bopaquin/convert-trace/blob/main/LICENSE) for more information.
