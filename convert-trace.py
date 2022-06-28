@@ -2,7 +2,7 @@
 Script to convert the data contained in a `.trs` file obtained from a
 vector network analyser from RIGOL (e.g. RSA3045N) into a `.csv` file
 containing the traces and, optionally, a `.json` file for all the other
-data.
+settings.
 """
 import argparse
 import csv
@@ -97,7 +97,24 @@ def parse_trs(content: str) -> dict:
 
 
 def parse_key(key: str, current_dict: dict, value: any):
+    """Split the key in sub dictionaries and assigns the value.
 
+    Creates sub dictionaries of the current dictionary if necessary and
+    assigns the value to the last key.
+
+    FIXME: Some entries we be better in a list but doing so without
+    knowing the following lines raises an issues where a string is used
+    as the index of the list.
+
+    Parameters
+    ----------
+    key : str
+        Key to parse and split in sub dictionaries.
+    current_dict : dict
+        Current working dictionary.
+    value : any
+        Value to assign to the last key.
+    """
     # convert all delimitation tokens to be the same (this could be done
     # on the entire content of the file to be faster but I'm not sure if
     # the key could contain these characters)
