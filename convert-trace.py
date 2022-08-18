@@ -70,10 +70,6 @@ def parse_key(key: str, current_dict: dict, value: any):
     Creates sub dictionaries of the current dictionary if necessary and
     assigns the value to the last key.
 
-    FIXME: Some entries we be better in a list but doing so without
-    knowing the following lines raises an issues where a string is used
-    as the index of the list.
-
     Parameters
     ----------
     key : str
@@ -85,11 +81,12 @@ def parse_key(key: str, current_dict: dict, value: any):
     """
     # convert all delimitation tokens to be the same (this could be done
     # on the entire content of the file to be faster but I'm not sure if
-    # the key could contain these characters)
+    # the values could contain these characters)
     key = key.replace('%5B', '\\')
     key = key.replace('%5D.', '\\')
     key = key.replace('%5D', '\\')
     key = key.replace('-%3E', '\\')
+    # %20 in url encoding is a space
     key = key.replace('%20', ' ')
 
     # remove token if it is the last character
@@ -103,7 +100,7 @@ def parse_key(key: str, current_dict: dict, value: any):
         if sub_dict not in current_dict:
             current_dict[sub_dict] = {}
 
-        # index in the new dict
+        # index in the sub dict
         current_dict = current_dict[sub_dict]
 
     # assign the value
@@ -112,6 +109,11 @@ def parse_key(key: str, current_dict: dict, value: any):
 
 def parse_trs(content: str) -> dict:
     """Parse the content of a `.trs` file and insert it in a dictionary.
+
+    FIXME: Some entries may be better in a list but doing so without
+    knowing the following lines raises an issues where a string is used
+    as the index of the list so it would have to be done after going
+    through the file once.
 
     Parameters
     ----------
