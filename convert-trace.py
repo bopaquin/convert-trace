@@ -149,22 +149,21 @@ def convert(src_file_name: str):
     with open(src_file_name.replace('trs', 'json'), 'w') as conf_file:
         conf_file.write(json.dumps(state, indent=2))
 
+    step_f = (
+        (state['VNAGloble']['m_f64StopFreq']
+         - state['VNAGloble']['m_f64StartFreq'])
+        / (state['Trace']['size'] - 1))
+
     with open(src_file_name.replace('trs', 'csv'), 'w') as csv_file:
         csv_writer = csv.writer(csv_file, delimiter=',')
         csv_writer.writerow(('frequency', 'real', 'imaginary'))
 
-        start_f = state['VNAGloble']['m_f64StartFreq']
-        stop_f = state['VNAGloble']['m_f64StopFreq']
-        size = state['Trace']['size']
-
-        step_f = (stop_f - start_f) / (size - 1)
-
         csv_writer.writerows([
             (
-                start_f + i * step_f,
+                state['VNAGloble']['m_f64StartFreq'] + i * step_f,
                 state['Trace'][f'{i+1}']['ampy'],
                 state['Trace'][f'{i+1}']['ampz'])
-            for i in range(size)])
+            for i in range(state['Trace']['size'])])
 
 
 def main():
