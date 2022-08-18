@@ -7,7 +7,6 @@ settings.
 import argparse
 import csv
 import json
-import urllib.parse
 
 
 def auto_cast(value: str) -> bool | int | float | str:
