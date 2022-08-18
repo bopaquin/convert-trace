@@ -64,38 +64,6 @@ def boolify(value: str) -> bool:
     raise ValueError(f"Can't interpret '{value}' as a boolean.")
 
 
-def parse_trs(content: str) -> dict:
-    """Parse the content of a `.trs` file and insert it in a dictionary.
-
-    Parameters
-    ----------
-    content : str
-        Content of a `.trs` file to parse.
-
-    Returns
-    -------
-    dict
-        Dictionnary representation of the content in the `.trs` file.
-    """
-    output = {}
-    section = ''
-    for line in content.splitlines():
-        # skip empty line
-        if line == '':
-            continue
-
-        if line.startswith('[') and line.endswith(']'):
-            section = line[1:-1]
-            output[section] = {}
-            continue
-
-        key, value = line.split('=', 1)
-
-        parse_key(key, output[section], auto_cast(value))
-
-    return output
-
-
 def parse_key(key: str, current_dict: dict, value: any):
     """Split the key in sub dictionaries and assigns the value.
 
@@ -140,6 +108,38 @@ def parse_key(key: str, current_dict: dict, value: any):
 
     # assign the value
     current_dict[key] = value
+
+
+def parse_trs(content: str) -> dict:
+    """Parse the content of a `.trs` file and insert it in a dictionary.
+
+    Parameters
+    ----------
+    content : str
+        Content of a `.trs` file to parse.
+
+    Returns
+    -------
+    dict
+        Dictionnary representation of the content in the `.trs` file.
+    """
+    output = {}
+    section = ''
+    for line in content.splitlines():
+        # skip empty line
+        if line == '':
+            continue
+
+        if line.startswith('[') and line.endswith(']'):
+            section = line[1:-1]
+            output[section] = {}
+            continue
+
+        key, value = line.split('=', 1)
+
+        parse_key(key, output[section], auto_cast(value))
+
+    return output
 
 
 def convert(src_file_name: str):
