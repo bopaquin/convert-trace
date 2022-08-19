@@ -311,7 +311,7 @@ def parse_args():
         help='file to convert')
     args = parser.parse_args()
 
-    if not args.config or not args.trace or not args.memory:
+    if not args.config and not args.trace and not args.memory:
         if args.verbose:
             print('No ouput selected defaulting to `-ct`')
         args.config = True
