@@ -173,6 +173,19 @@ def parse_trs(content: str) -> dict:
     dict
         Dictionnary representation of the content in the `.trs` file.
     """
+
+    def fix_trace(dictionary: dict, start_frequency: float,
+                  frequency_step: float) -> list:
+
+        fixed_trace = []
+        for i in range(dictionary['size']):
+            fixed_trace.append({
+                'frequency': start_frequency + i * frequency_step,
+                'real': dictionary[f'{i+1}']['ampy'],
+                'imaginary': dictionary[f'{i+1}']['ampz']
+            })
+        return fixed_trace
+
     output = {}
     section = ''
     for line in content.splitlines():
@@ -189,12 +202,19 @@ def parse_trs(content: str) -> dict:
 
         parse_key(key, output[section], auto_cast(value))
 
-    # FIXME: Some entries may be better in a list but doing so without
-    # knowing the following lines raises an issues where a string is
-    # used as the index of the list so it would have to be done after
-    # going through the file once and require to identify those entries
-    # and removing the none integer indexes like 'size' in the 'Trace'
-    # subdictionnary.
+    start_frequency = output['VNAGloble']['m_f64StartFreq']
+    frequency_step = (output['VNAGloble']['m_f64Span']
+                      / (output['VNAGloble']['m_s32SweepPoints'] - 1))
+
+    output['Trace'] = fix_trace(output['Trace'],
+                                start_frequency, frequency_step)
+    output['MemoryTrace'] = fix_trace(output['MemoryTrace'],
+                                      start_frequency, frequency_step)
+
+    # FIXME: Some other entries may also benefit from being in a list
+    # but doing it automatically would be better. Some have a 'size' key
+    # but some don't. Also some of the entries are 0 indexed and others
+    # are 1 indexed.
 
     return output
 
@@ -241,40 +261,27 @@ def convert(file_path: str, config: bool, trace: bool, memory: bool,
                   'w') as conf_file:
             conf_file.write(json.dumps(state, indent=2))
 
-        step_f = (
-            (state['VNAGloble']['m_f64StopFreq']
-             - state['VNAGloble']['m_f64StartFreq'])
-            / (state['Trace']['size'] - 1))
-
     if trace:
         with open(os.path.join(output, file_name + '_trace.csv'),
                   'w') as csv_file:
-            csv_writer = csv.writer(csv_file, delimiter=',')
-            csv_writer.writerow(('frequency', 'real', 'imaginary'))
+            csv_writer = csv.DictWriter(csv_file,
+                                        ('frequency', 'real', 'imaginary'),
+                                        delimiter=',')
+            csv_writer.writeheader()
+            csv_writer.writerows(state['Trace'])
 
-            csv_writer.writerows([
-                (
-                    state['VNAGloble']['m_f64StartFreq'] + i * step_f,
-                    state['Trace'][f'{i+1}']['ampy'],
-                    state['Trace'][f'{i+1}']['ampz'])
-                for i in range(state['Trace']['size'])])
-
-    if memory and state['MemoryTrace']['size'] == 0:
-        print(f'No memory trace in file {file}, skipping.')
+    if memory and len(state['MemoryTrace']) == 0:
+        print(f'No memory trace in file {file_path}, skipping.')
         memory = False
 
     if memory:
         with open(os.path.join(output, file_name + '_memory.csv'),
                   'w') as csv_file:
-            csv_writer = csv.writer(csv_file, delimiter=',')
-            csv_writer.writerow(('frequency', 'real', 'imaginary'))
-
-            csv_writer.writerows([
-                (
-                    state['VNAGloble']['m_f64StartFreq'] + i * step_f,
-                    state['MemoryTrace'][f'{i+1}']['ampy'],
-                    state['MemoryTrace'][f'{i+1}']['ampz'])
-                for i in range(state['MemoryTrace']['size'])])
+            csv_writer = csv.DictWriter(csv_file,
+                                        ('frequency', 'real', 'imaginary'),
+                                        delimiter=',')
+            csv_writer.writeheader()
+            csv_writer.writerows(state['MemoryTrace'])
 
     return state
 
