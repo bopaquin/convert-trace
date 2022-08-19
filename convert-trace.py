@@ -65,12 +65,49 @@ def boolify(value: str) -> bool:
 
 
 class File_Type(object):
+    """Class to evaluate the validity of a path once called upon.
+
+    Evaluate that a path exists and has the extension specified in the
+    constructor.
+    """
+
     def __init__(self, ext: str):
+        """Constructor of the class defining the valid extension.
+
+        Parameters
+        ----------
+        ext : str
+            Extension to match to be considered a valid path.
+
+        Raises
+        ------
+        ValueError
+            When the extension doesn't have the for `.***`.
+        """
         if not ext.startswith('.'):
             raise ValueError('A file extension begins with a `.`.')
         self.ext = ext
 
-    def __call__(self, path):
+    def __call__(self, path: str) -> str:
+        """Validate the existence and the conformity of the given path
+        against the defined extension.
+
+        Parameters
+        ----------
+        path : str
+            Path to the file to validate.
+
+        Returns
+        -------
+        str
+            Return the input path if it passes the check.
+
+        Raises
+        ------
+        TypeError
+            If the file doesn't exist or if it doesn't have the right
+            extension.
+        """
         if not os.path.exists(path):
             raise TypeError(f"File {path} doesn't exist.")
 
@@ -126,11 +163,6 @@ def parse_key(key: str, current_dict: dict, value: any):
 def parse_trs(content: str) -> dict:
     """Parse the content of a `.trs` file and insert it in a dictionary.
 
-    FIXME: Some entries may be better in a list but doing so without
-    knowing the following lines raises an issues where a string is used
-    as the index of the list so it would have to be done after going
-    through the file once.
-
     Parameters
     ----------
     content : str
@@ -157,11 +189,47 @@ def parse_trs(content: str) -> dict:
 
         parse_key(key, output[section], auto_cast(value))
 
+    # FIXME: Some entries may be better in a list but doing so without
+    # knowing the following lines raises an issues where a string is
+    # used as the index of the list so it would have to be done after
+    # going through the file once and require to identify those entries
+    # and removing the none integer indexes like 'size' in the 'Trace'
+    # subdictionnary.
+
     return output
 
 
 def convert(file_path: str, config: bool, trace: bool, memory: bool,
             output: str) -> dict:
+    """Convert the content of the specified file with the `parse_trs`
+    method, output the desired files and return the converted
+    dictionnary.
+
+    Parameters
+    ----------
+    file_path : str
+        Path to the `.trs` file containing the data to be converted.
+    config : bool
+        Controls the output of a json file containing all the data from
+        the file. With an input file `file_name.trs`, the output will be
+        `file_name_config.json` in the directory provided by output.
+    trace : bool
+        Controls the output of a csv file containing the trace from the
+        file. With an input file `file_name.trs`, the output will be
+        `file_name_trace.csv` in the directory provided by output.
+    memory : bool
+        Controls the output of a csv file containing the memory trace
+        from the file. With an input file `file_name.trs`, the output
+        will be `file_name_memory.csv` in the directory provided by
+        output.
+    output : str
+        Directory to save the outputs to.
+
+    Returns
+    -------
+    dict
+        Dictionnary from the `parse_trs` method.
+    """
 
     file_name = os.path.splitext(os.path.basename(file_path))[0]
 
@@ -171,25 +239,25 @@ def convert(file_path: str, config: bool, trace: bool, memory: bool,
     if config:
         with open(os.path.join(output, file_name + '_config.json'),
                   'w') as conf_file:
-        conf_file.write(json.dumps(state, indent=2))
+            conf_file.write(json.dumps(state, indent=2))
 
-    step_f = (
-        (state['VNAGloble']['m_f64StopFreq']
-         - state['VNAGloble']['m_f64StartFreq'])
-        / (state['Trace']['size'] - 1))
+        step_f = (
+            (state['VNAGloble']['m_f64StopFreq']
+             - state['VNAGloble']['m_f64StartFreq'])
+            / (state['Trace']['size'] - 1))
 
     if trace:
         with open(os.path.join(output, file_name + '_trace.csv'),
                   'w') as csv_file:
-        csv_writer = csv.writer(csv_file, delimiter=',')
-        csv_writer.writerow(('frequency', 'real', 'imaginary'))
+            csv_writer = csv.writer(csv_file, delimiter=',')
+            csv_writer.writerow(('frequency', 'real', 'imaginary'))
 
-        csv_writer.writerows([
-            (
-                state['VNAGloble']['m_f64StartFreq'] + i * step_f,
-                state['Trace'][f'{i+1}']['ampy'],
-                state['Trace'][f'{i+1}']['ampz'])
-            for i in range(state['Trace']['size'])])
+            csv_writer.writerows([
+                (
+                    state['VNAGloble']['m_f64StartFreq'] + i * step_f,
+                    state['Trace'][f'{i+1}']['ampy'],
+                    state['Trace'][f'{i+1}']['ampz'])
+                for i in range(state['Trace']['size'])])
 
     if memory and state['MemoryTrace']['size'] == 0:
         print(f'No memory trace in file {file}, skipping.')
@@ -254,6 +322,8 @@ def parse_args():
 
 def main():
     args = parse_args()
+
+    # TODO: Better use of verbosity argument.
 
     if args.output_dir is not None and not os.path.exists(args.output_dir):
         os.mkdir(args.output_dir)
