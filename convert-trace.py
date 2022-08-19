@@ -7,6 +7,7 @@ settings.
 import argparse
 import csv
 import json
+import os
 
 
 def auto_cast(value: str) -> bool | int | float | str:
@@ -61,6 +62,22 @@ def boolify(value: str) -> bool:
     if value == 'False' or value == 'false':
         return False
     raise ValueError(f"Can't interpret '{value}' as a boolean.")
+
+
+class File_Type(object):
+    def __init__(self, ext: str):
+        if not ext.startswith('.'):
+            raise ValueError('A file extension begins with a `.`.')
+        self.ext = ext
+
+    def __call__(self, path):
+        if not os.path.exists(path):
+            raise TypeError(f"File {path} doesn't exist.")
+
+        if os.path.splitext(path)[1] != self.ext:
+            raise TypeError(
+                f'File {path} as not the right extension ({self.ext})')
+        return path
 
 
 def parse_key(key: str, current_dict: dict, value: any):
@@ -143,11 +160,17 @@ def parse_trs(content: str) -> dict:
     return output
 
 
-def convert(src_file_name: str):
-    with open(src_file_name, 'r') as src_file:
-        state = parse_trs(src_file.read())
+def convert(file_path: str, config: bool, trace: bool, memory: bool,
+            output: str) -> dict:
 
-    with open(src_file_name.replace('trs', 'json'), 'w') as conf_file:
+    file_name = os.path.splitext(os.path.basename(file_path))[0]
+
+    with open(file_path, 'r') as file:
+        state = parse_trs(file.read())
+
+    if config:
+        with open(os.path.join(output, file_name + '_config.json'),
+                  'w') as conf_file:
         conf_file.write(json.dumps(state, indent=2))
 
     step_f = (
@@ -155,7 +178,9 @@ def convert(src_file_name: str):
          - state['VNAGloble']['m_f64StartFreq'])
         / (state['Trace']['size'] - 1))
 
-    with open(src_file_name.replace('trs', 'csv'), 'w') as csv_file:
+    if trace:
+        with open(os.path.join(output, file_name + '_trace.csv'),
+                  'w') as csv_file:
         csv_writer = csv.writer(csv_file, delimiter=',')
         csv_writer.writerow(('frequency', 'real', 'imaginary'))
 
@@ -166,15 +191,83 @@ def convert(src_file_name: str):
                 state['Trace'][f'{i+1}']['ampz'])
             for i in range(state['Trace']['size'])])
 
+    if memory and state['MemoryTrace']['size'] == 0:
+        print(f'No memory trace in file {file}, skipping.')
+        memory = False
 
-def main():
+    if memory:
+        with open(os.path.join(output, file_name + '_memory.csv'),
+                  'w') as csv_file:
+            csv_writer = csv.writer(csv_file, delimiter=',')
+            csv_writer.writerow(('frequency', 'real', 'imaginary'))
+
+            csv_writer.writerows([
+                (
+                    state['VNAGloble']['m_f64StartFreq'] + i * step_f,
+                    state['MemoryTrace'][f'{i+1}']['ampy'],
+                    state['MemoryTrace'][f'{i+1}']['ampz'])
+                for i in range(state['MemoryTrace']['size'])])
+
+    return state
+
+
+def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-v', '--verbose', help='increase output verbosity',
-                        action='store_true')
-    parser.add_argument('file', help='file to convert', type=str)
+    parser.add_argument_group()
+    parser.add_argument(
+        '-c', '--config',
+        action='store_true',
+        help='output a json file containing all the data from the `.trs` file '
+        'in json format `file_config.json`')
+    parser.add_argument(
+        '-t', '--trace',
+        action='store_true',
+        help='output a csv file containing the data from the trace as '
+             '`file_trace.csv`')
+    parser.add_argument(
+        '-m', '--memory',
+        action='store_true',
+        help='output a csv file containing the data stored in the memory '
+             'trace as `file_memory.csv`')
+    parser.add_argument(
+        '-v', '--verbose',
+        action='store_true',
+        help='increase output verbosity')
+    parser.add_argument(
+        '-o', '--output-dir',
+        help='output directory')
+    parser.add_argument(
+        'file',
+        nargs='+',
+        type=File_Type('.trs'),
+        help='file to convert')
     args = parser.parse_args()
 
-    convert(args.file)
+    if not args.config or not args.trace or not args.memory:
+        if args.verbose:
+            print('No ouput selected defaulting to `-ct`')
+        args.config = True
+        args.trace = True
+
+    return args
+
+
+def main():
+    args = parse_args()
+
+    if args.output_dir is not None and not os.path.exists(args.output_dir):
+        os.mkdir(args.output_dir)
+
+    for file in args.file:
+        if args.verbose:
+            print(f'Processing file {file}.')
+
+        if args.output_dir is None:
+            convert(file, args.config, args.trace, args.memory,
+                    os.path.dirname(file))
+        else:
+            convert(file, args.config, args.trace, args.memory,
+                    args.output_dir)
 
 
 if __name__ == "__main__":
